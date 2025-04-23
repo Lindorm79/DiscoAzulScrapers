@@ -92,7 +92,7 @@ def scrape_receta(url):
 
 # Função principal para buscar as receitas
 def main():
-    os.makedirs(OUTPUT_PATH, exist_ok=True)  # Cria a pasta se não existir
+   
     links = get_links_recetas(limit=5)
     if links:
         todas_receitas = []
