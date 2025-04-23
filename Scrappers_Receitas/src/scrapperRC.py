@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import time 
+import os
 
 # Definindo o header para evitar bloqueios
 HEADERS = {
@@ -9,6 +10,7 @@ HEADERS = {
     "Accept-Language": "es-ES,es;q=0.9"
 }
 
+OUTPUT_PATH = "/home/joaobahia/Projeto/DiscoAzulScrappers/Scrappers_Receitas/output"
 # Função para pegar os links das receitas na página principal
 def get_links_recetas(limit = 5): # Limite de links a serem coletados
     url = "https://www.recetasgratis.net/"
@@ -90,23 +92,23 @@ def scrape_receta(url):
 
 # Função principal para buscar as receitas
 def main():
-    links = get_links_recetas(limit=5)  # Limite de receitas a serem coletadas 
+    os.makedirs(OUTPUT_PATH, exist_ok=True)  # Cria a pasta se não existir
+    links = get_links_recetas(limit=5)
     if links:
         todas_receitas = []
         for link in links:
             print(f"📥 Coletando dados de: {link}")
-            dados = scrape_receta(link)  
+            dados = scrape_receta(link)
             if dados:
                 todas_receitas.append(dados)
 
-        
-        with open('receitas.json', 'w', encoding='utf-8') as f:
+        output_file = os.path.join(OUTPUT_PATH, 'receitas.json')
+        with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(todas_receitas, f, ensure_ascii=False, indent=2)
 
-        print("✅ Dados das receitas salvos com sucesso!")
+        print(f"✅ Dados das receitas salvos com sucesso em: {output_file}")
     else:
         print("❌ Nenhum link encontrado para as receitas.")
 
-# Chama a função principal
 if __name__ == "__main__":
     main()
