@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import json
+import time 
 
 # Definindo o header para evitar bloqueios
 HEADERS = {
@@ -25,6 +26,7 @@ def get_links_recetas(limit = 5): # Limite de links a serem coletados
                 count += 1
                 if count >= limit:
                     break
+                time.sleep(1)   
             
         
         return links
