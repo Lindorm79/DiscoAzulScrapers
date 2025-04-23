@@ -9,7 +9,7 @@ HEADERS = {
 }
 
 # Função para pegar os links das receitas na página principal
-def get_links_recetas():
+def get_links_recetas(limit=5):
     url = "https://www.recetasgratis.net/"
     try:
         response = requests.get(url, headers=HEADERS)
@@ -23,6 +23,9 @@ def get_links_recetas():
             href = a.get('href')
             if href:
                 links.append(href)
+                count += 1
+                if count >= limit:
+                    break
             
         
         return links
@@ -53,6 +56,15 @@ def scrape_receta(url):
                 if ingrediente:
                     ingredientes.append(ingrediente)
 
+        # Extrair passos
+        passos = []
+        passos_section = soup.find_all('div', class_='apartado')
+        for sec in passos_section:
+            if sec.find('div', class_='orden'):
+                p = sec.find('p')
+                if p:
+                    passos.append(p.get_text(strip=True))
+
         # Extrair valores nutricionais, se existirem
           
         nutricion = {}
@@ -66,10 +78,11 @@ def scrape_receta(url):
 
         # Retorna os dados da receita
         return {
-            "titulo": titulo,
-            "imagem": imagem_url,
+            "titulo"      : titulo,
+            "imagem"      : imagem_url,
             "ingredientes": ingredientes,
-            "nutricion": nutricion
+            "nutricion"   : nutricion,
+            "passos"      : passos
         }
     except Exception as e:
         print(f"Erro ao coletar dados de {url}: {e}")
@@ -78,7 +91,7 @@ def scrape_receta(url):
 # Função principal para buscar as receitas
 def main():
      # Quantidade de receitas que você quer coletar
-    links = get_links_recetas()  # Pega os links de receitas, limitando a 5
+    links = get_links_recetas(limit=5)  # Pega os links de receitas, limitando a 5
     if links:
         todas_receitas = []
         for link in links:
