@@ -9,14 +9,13 @@ HEADERS = {
 }
 
 # Função para pegar os links das receitas na página principal
-def get_links_recetas(limit=5):
+def get_links_recetas(limit = 5): # Limite de links a serem coletados
     url = "https://www.recetasgratis.net/"
     try:
         response = requests.get(url, headers=HEADERS)
-        response.raise_for_status()  # Verifica se a resposta foi bem-sucedida
+        response.raise_for_status()  
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Encontrando todos os links com a classe 'titulo titulo--bloque'
         links = []
         count = 0
         for a in soup.find_all('a', class_='titulo titulo--bloque'):
@@ -43,7 +42,7 @@ def scrape_receta(url):
         # Extrair título da receita
         titulo = soup.find('h1', class_='titulo').text.strip()
 
-        # Extrair imagem da receita (agora pegamos a URL do src da tag img com classe 'imagen')
+        # Extrair imagem da receita 
         imagem = soup.find('img', class_='imagen')
         imagem_url = imagem['src'] if imagem else None
 
@@ -65,7 +64,7 @@ def scrape_receta(url):
                 if p:
                     passos.append(p.get_text(strip=True))
 
-        # Extrair valores nutricionais, se existirem
+        # Extrair valores nutricionais
           
         nutricion = {}
         nutricion_section = soup.find('div', id='nutritional-info')
@@ -76,7 +75,6 @@ def scrape_receta(url):
                     chave, valor = texto.split(':', 1)
                     nutricion[chave.strip()] = valor.strip()
 
-        # Retorna os dados da receita
         return {
             "titulo"      : titulo,
             "imagem"      : imagem_url,
@@ -90,17 +88,16 @@ def scrape_receta(url):
 
 # Função principal para buscar as receitas
 def main():
-     # Quantidade de receitas que você quer coletar
-    links = get_links_recetas(limit=5)  # Pega os links de receitas, limitando a 5
+    links = get_links_recetas(limit=5)  # Limite de receitas a serem coletadas 
     if links:
         todas_receitas = []
         for link in links:
             print(f"📥 Coletando dados de: {link}")
-            dados = scrape_receta(link)  # Coleta os dados de cada receita
+            dados = scrape_receta(link)  
             if dados:
                 todas_receitas.append(dados)
 
-        # Salva os dados em um arquivo JSON
+        
         with open('receitas.json', 'w', encoding='utf-8') as f:
             json.dump(todas_receitas, f, ensure_ascii=False, indent=2)
 
