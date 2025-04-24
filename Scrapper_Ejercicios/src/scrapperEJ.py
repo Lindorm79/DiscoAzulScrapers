@@ -64,16 +64,12 @@ def save_if_changed(new_data):
     log_change()
     return True
 
-def get_exercicios(limit=5):  
+def get_exercicios():  
     url = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json"
     try:
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
         dados = response.json()
-
-        # limite
-        dados = dados[:limit]
-
         return dados
     except Exception as e:
         print(f"Erro ao buscar dados do free-exercise-db: {e}")
@@ -114,13 +110,26 @@ def processar_exercicio(exercicio):
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
-    exercicios_raw = get_exercicios(limit=5) 
+    exercicios_raw = get_exercicios() 
     if not exercicios_raw:
         print("❌ Nenhum exercício encontrado no free-exercise-db.")
         return
 
+    while True:
+        try:
+            num_exercicios = int(input("Cuantos ejercicios desea procesar? \n"))
+            if num_exercicios <= 0:
+                print("⚠️ Por favor, ingrese un número mayor que 0.")
+                continue
+            if num_exercicios > len(exercicios_raw):
+                print(f"⚠️ Solo hay {len(exercicios_raw)} ejercicios disponibles. Procesando {len(exercicios_raw)} ejercicios.")
+                num_exercicios = len(exercicios_raw)
+            break
+        except ValueError:
+            print("⚠️ Por favor, ingrese un número válido.")
+
     todos_exercicios = []
-    for exercicio in exercicios_raw:
+    for exercicio in exercicios_raw[:num_exercicios]:
         print(f"📥 Processando exercício: {exercicio['name']}")
         dados = processar_exercicio(exercicio)
         if dados:
