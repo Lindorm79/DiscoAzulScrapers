@@ -3,16 +3,64 @@ from bs4 import BeautifulSoup
 import json
 import time 
 import os
+from datetime import datetime
+import hashlib
 
-# Definindo o header para evitar bloqueios
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     "Accept-Language": "es-ES,es;q=0.9"
 }
 
-OUTPUT_PATH = "/home/joaobahia/Projeto/DiscoAzulScrappers/Scrappers_Receitas/output"
-# Função para pegar os links das receitas na página principal
-def get_links_recetas(limit = 5): # Limite de links a serem coletados
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'output')
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, 'receitas.json')
+LOG_FILE = os.path.join(OUTPUT_DIR, 'receitas_log.json')
+
+def calculate_hash(content):
+    return hashlib.sha256(json.dumps(content, sort_keys=True).encode('utf-8')).hexdigest()
+
+def log_change():
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = {
+        "timestamp": timestamp,
+        "file": OUTPUT_FILE,
+        "action": "modified"
+    }
+    
+    log_data = []
+    if os.path.exists(LOG_FILE):
+        try:
+            with open(LOG_FILE, 'r', encoding='utf-8') as f:
+                log_data = json.load(f)
+        except:
+            pass
+    
+    log_data.append(log_entry)
+    
+    with open(LOG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(log_data, f, ensure_ascii=False, indent=2)
+
+def save_if_changed(new_data):
+    current_hash = calculate_hash(new_data)
+    
+    if os.path.exists(OUTPUT_FILE):
+        try:
+            with open(OUTPUT_FILE, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+            existing_hash = calculate_hash(existing_data)
+            
+            if current_hash == existing_hash:
+                print("ℹ️ Nenhuma alteração detectada no conteúdo.")
+                return False
+        except:
+            pass
+    
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+        json.dump(new_data, f, ensure_ascii=False, indent=2)
+    
+    log_change()
+    return True
+
+def get_links_recetas(limit):
     url = "https://www.recetasgratis.net/"
     try:
         response = requests.get(url, headers=HEADERS)
@@ -29,28 +77,22 @@ def get_links_recetas(limit = 5): # Limite de links a serem coletados
                 if count >= limit:
                     break
                 time.sleep(1)   
-            
         
         return links
     except Exception as e:
         print(f"Erro ao buscar links em {url}: {e}")
         return []
 
-# Função para coletar os dados de cada receita
 def scrape_receta(url):
     try:
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Extrair título da receita
         titulo = soup.find('h1', class_='titulo').text.strip()
-
-        # Extrair imagem da receita 
         imagem = soup.find('img', class_='imagen')
         imagem_url = imagem['src'] if imagem else None
 
-        # Extrair ingredientes
         ingredientes = []
         ingredientes_section = soup.find('div', class_='ingredientes')
         if ingredientes_section:
@@ -59,7 +101,6 @@ def scrape_receta(url):
                 if ingrediente:
                     ingredientes.append(ingrediente)
 
-        # Extrair passos
         passos = []
         passos_section = soup.find_all('div', class_='apartado')
         for sec in passos_section:
@@ -68,8 +109,6 @@ def scrape_receta(url):
                 if p:
                     passos.append(p.get_text(strip=True))
 
-        # Extrair valores nutricionais
-          
         nutricion = {}
         nutricion_section = soup.find('div', id='nutritional-info')
         if nutricion_section:
@@ -80,20 +119,32 @@ def scrape_receta(url):
                     nutricion[chave.strip()] = valor.strip()
 
         return {
-            "titulo"      : titulo,
-            "imagem"      : imagem_url,
+            "titulo": titulo,
+            "imagem": imagem_url,
             "ingredientes": ingredientes,
-            "nutricion"   : nutricion,
-            "passos"      : passos
+            "nutricion": nutricion,
+            "passos": passos
         }
     except Exception as e:
         print(f"Erro ao coletar dados de {url}: {e}")
         return None
 
-# Função principal para buscar as receitas
 def main():
-   
-    links = get_links_recetas(limit=5)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    
+    print("\n\t==={ SCRAPPER RECETAS }===\n")
+    
+    while True:
+        try:
+            limit = int(input("Digite o número de receitas a coletar (exemplo: 5): "))
+            print("\n\t==={ Scrapping in proccess, please be pacient. It may take some time, big numbers are equivalent to bigger delays. }===\n")
+            if limit > 0:
+                break
+            print("Por favor, insira um número maior que 0.")
+        except ValueError:
+            print("Por favor, insira um número válido.")
+    
+    links = get_links_recetas(limit)
     if links:
         todas_receitas = []
         for link in links:
@@ -102,11 +153,10 @@ def main():
             if dados:
                 todas_receitas.append(dados)
 
-        output_file = os.path.join(OUTPUT_PATH, 'receitas.json')
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(todas_receitas, f, ensure_ascii=False, indent=2)
-
-        print(f"✅ Dados das receitas salvos com sucesso em: {output_file}")
+        if save_if_changed(todas_receitas):
+            print(f"✅ Dados das receitas salvos com sucesso em: {OUTPUT_FILE}")
+        else:
+            print(f"ℹ️ Dados não salvos, pois não houve alterações.")
     else:
         print("❌ Nenhum link encontrado para as receitas.")
 
