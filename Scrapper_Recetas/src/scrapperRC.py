@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import json
 import time 
 import os
+from datetime import datetime
+import hashlib
 
 # Definindo o header para evitar bloqueios
 HEADERS = {
@@ -10,13 +12,63 @@ HEADERS = {
     "Accept-Language": "es-ES,es;q=0.9"
 }
 
-# caminho para a pasta output
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), 'output')
-os.makedirs(OUTPUT_DIR, exist_ok=True) # cria a pasta output, se esta ainda não existir
+# Caminho para a pasta output
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'output')
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, 'receitas.json')
+LOG_FILE = os.path.join(OUTPUT_DIR, 'receitas_log.json')
 
+# Função para calcular o hash do conteúdo
+def calculate_hash(content):
+    return hashlib.sha256(json.dumps(content, sort_keys=True).encode('utf-8')).hexdigest()
 
-# função para levantar os links da página principal
-def get_links_recetas(limit = 5): # limite de links a serem levantados
+# Função para registrar alterações no log
+def log_change():
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = {
+        "timestamp": timestamp,
+        "file": OUTPUT_FILE,
+        "action": "modified"
+    }
+    
+    log_data = []
+    if os.path.exists(LOG_FILE):
+        try:
+            with open(LOG_FILE, 'r', encoding='utf-8') as f:
+                log_data = json.load(f)
+        except:
+            pass
+    
+    log_data.append(log_entry)
+    
+    with open(LOG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(log_data, f, ensure_ascii=False, indent=2)
+
+# Função para verificar e salvar se houver alterações
+def save_if_changed(new_data):
+    current_hash = calculate_hash(new_data)
+    
+    # Verificar se o arquivo já existe e comparar o hash
+    if os.path.exists(OUTPUT_FILE):
+        try:
+            with open(OUTPUT_FILE, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+            existing_hash = calculate_hash(existing_data)
+            
+            if current_hash == existing_hash:
+                print("ℹ️ Nenhuma alteração detectada no conteúdo.")
+                return False
+        except:
+            pass
+    
+    # Salvar novo conteúdo e registrar a alteração
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+        json.dump(new_data, f, ensure_ascii=False, indent=2)
+    
+    log_change()
+    return True
+
+# Função para levantar os links da página principal
+def get_links_recetas(limit=5): # limite de links a serem levantados
     url = "https://www.recetasgratis.net/"
     try:
         response = requests.get(url, headers=HEADERS)
@@ -33,28 +85,27 @@ def get_links_recetas(limit = 5): # limite de links a serem levantados
                 if count >= limit:
                     break
                 time.sleep(1)   
-            
         
         return links
     except Exception as e:
         print(f"Erro ao buscar links em {url}: {e}")
         return []
 
-# função para coletar os dados de cada receita
+# Função para coletar os dados de cada receita
 def scrape_receta(url):
     try:
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # extrair título da receita
+        # Extrair título da receita
         titulo = soup.find('h1', class_='titulo').text.strip()
 
-        # extrair imagem da receita 
+        # Extrair imagem da receita 
         imagem = soup.find('img', class_='imagen')
         imagem_url = imagem['src'] if imagem else None
 
-        # extrair ingredientes
+        # Extrair ingredientes
         ingredientes = []
         ingredientes_section = soup.find('div', class_='ingredientes')
         if ingredientes_section:
@@ -63,7 +114,7 @@ def scrape_receta(url):
                 if ingrediente:
                     ingredientes.append(ingrediente)
 
-        # extrair passos
+        # Extrair passos
         passos = []
         passos_section = soup.find_all('div', class_='apartado')
         for sec in passos_section:
@@ -72,7 +123,7 @@ def scrape_receta(url):
                 if p:
                     passos.append(p.get_text(strip=True))
 
-        # extrair valores nutricionais
+        # Extrair valores nutricionais
         nutricion = {}
         nutricion_section = soup.find('div', id='nutritional-info')
         if nutricion_section:
@@ -93,9 +144,9 @@ def scrape_receta(url):
         print(f"Erro ao coletar dados de {url}: {e}")
         return None
 
-# função principal para buscar as receitas
 def main():
-   
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    
     links = get_links_recetas(limit=5)
     if links:
         todas_receitas = []
@@ -105,11 +156,10 @@ def main():
             if dados:
                 todas_receitas.append(dados)
 
-        output_file = os.path.join(OUTPUT_DIR, 'receitas.json')
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(todas_receitas, f, ensure_ascii=False, indent=2)
-
-        print(f"✅ Dados das receitas salvos com sucesso em: {output_file}")
+        if save_if_changed(todas_receitas):
+            print(f"✅ Dados das receitas salvos com sucesso em: {OUTPUT_FILE}")
+        else:
+            print(f"ℹ️ Dados não salvos, pois não houve alterações.")
     else:
         print("❌ Nenhum link encontrado para as receitas.")
 
