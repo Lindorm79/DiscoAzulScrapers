@@ -42,7 +42,6 @@ def log_change():
 def save_if_changed(new_data):
     current_hash = calculate_hash(new_data)
     
-    # verificar se o arquivo já existe e comparar o hash
     if os.path.exists(OUTPUT_FILE):
         try:
             with open(OUTPUT_FILE, 'r', encoding='utf-8') as f:
@@ -55,14 +54,13 @@ def save_if_changed(new_data):
         except:
             pass
     
-    # salvar novo conteúdo e registrar a alteração
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(new_data, f, ensure_ascii=False, indent=2)
     
     log_change()
     return True
 
-def get_links_recetas(limit=5): # limite de links a serem levantados
+def get_links_recetas(limit):
     url = "https://www.recetasgratis.net/"
     try:
         response = requests.get(url, headers=HEADERS)
@@ -91,14 +89,10 @@ def scrape_receta(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # extrair título da receita
         titulo = soup.find('h1', class_='titulo').text.strip()
-
-        # extrair imagem da receita 
         imagem = soup.find('img', class_='imagen')
         imagem_url = imagem['src'] if imagem else None
 
-        # extrair ingredientes
         ingredientes = []
         ingredientes_section = soup.find('div', class_='ingredientes')
         if ingredientes_section:
@@ -107,7 +101,6 @@ def scrape_receta(url):
                 if ingrediente:
                     ingredientes.append(ingrediente)
 
-        # extrair passos
         passos = []
         passos_section = soup.find_all('div', class_='apartado')
         for sec in passos_section:
@@ -116,7 +109,6 @@ def scrape_receta(url):
                 if p:
                     passos.append(p.get_text(strip=True))
 
-        # extrair valores nutricionais
         nutricion = {}
         nutricion_section = soup.find('div', id='nutritional-info')
         if nutricion_section:
@@ -127,11 +119,11 @@ def scrape_receta(url):
                     nutricion[chave.strip()] = valor.strip()
 
         return {
-            "titulo"      : titulo,
-            "imagem"      : imagem_url,
+            "titulo": titulo,
+            "imagem": imagem_url,
             "ingredientes": ingredientes,
-            "nutricion"   : nutricion,
-            "passos"      : passos
+            "nutricion": nutricion,
+            "passos": passos
         }
     except Exception as e:
         print(f"Erro ao coletar dados de {url}: {e}")
@@ -140,7 +132,19 @@ def scrape_receta(url):
 def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
-    links = get_links_recetas(limit=5)
+    print("\n\t==={ SCRAPPER RECETAS }===\n")
+    
+    while True:
+        try:
+            limit = int(input("Digite o número de receitas a coletar (exemplo: 5): "))
+            print("\n\t==={ Scrapping in proccess, please be pacient. It may take some time, big numbers are equivalent to bigger delays. }===")
+            if limit > 0:
+                break
+            print("Por favor, insira um número maior que 0.")
+        except ValueError:
+            print("Por favor, insira um número válido.")
+    
+    links = get_links_recetas(limit)
     if links:
         todas_receitas = []
         for link in links:
