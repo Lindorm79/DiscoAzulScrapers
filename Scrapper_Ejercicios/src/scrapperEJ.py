@@ -2,6 +2,9 @@ import requests
 import json
 import time
 import os
+from deep_translator import GoogleTranslator
+
+translator = GoogleTranslator(source='auto', target= 'es')
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -30,16 +33,20 @@ def get_exercicios(limit=5):
 # função para processar cada exercício e formatar os dados
 def processar_exercicio(exercicio):
     try:
-
+        # Traduzir os detalhes (exceto o título)
         detalhes = {
-            "Categoria": exercicio.get("category", "Não especificado"),
-            "Força": exercicio.get("force", "Não especificado"),
-            "Nível": exercicio.get("level", "Não especificado"),
-            "Equipamento": exercicio.get("equipment", "Não especificado"),
-            "Músculos Primários": ", ".join(exercicio.get("primaryMuscles", [])),
-            "Músculos Secundários": ", ".join(exercicio.get("secondaryMuscles", []))
+            "Categoria": translator.translate(exercicio.get("category", "Não especificado")),
+            "Força": translator.translate(exercicio.get("force", "Não especificado")),
+            "Nível": translator.translate(exercicio.get("level", "Não especificado")),
+            "Equipamento": translator.translate(exercicio.get("equipment", "Não especificado")),
+            "Músculos Primários": translator.translate(", ".join(exercicio.get("primaryMuscles", []))) if exercicio.get("primaryMuscles") else "Nenhum",
+            "Músculos Secundários": translator.translate(", ".join(exercicio.get("secondaryMuscles", []))) if exercicio.get("secondaryMuscles") else "Nenhum"
         }
 
+        # Traduzir os passos
+        passos = [translator.translate(passo) for passo in exercicio.get("instructions", [])]
+
+        # Gerar URLs das imagens (sem tradução)
         imagens = exercicio.get("images", [])
         imagens_urls = [
             f"https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/images/{exercicio['name'].replace(' ', '_')}/{img}"
@@ -47,9 +54,9 @@ def processar_exercicio(exercicio):
         ]
 
         return {
-            "titulo": exercicio.get("name", "Título não encontrado"),
+            "titulo": exercicio.get("name", "Título não encontrado"),  # Mantém o título original
             "detalhes": detalhes,
-            "passos": exercicio.get("instructions", []),
+            "passos": passos,
             "imagens": imagens_urls if imagens_urls else None
         }
     except Exception as e:
