@@ -11,7 +11,7 @@ HEADERS = {
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'output')
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, 'exercicios.json')
 
-# Função para ir buscar os dados
+# função para ir buscar os dados
 def get_exercicios(limit=5):  
     url = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json"
     try:
@@ -27,7 +27,7 @@ def get_exercicios(limit=5):
         print(f"Erro ao buscar dados do free-exercise-db: {e}")
         return []
 
-# Função para processar cada exercício e formatar os dados
+# função para processar cada exercício e formatar os dados
 def processar_exercicio(exercicio):
     try:
 
