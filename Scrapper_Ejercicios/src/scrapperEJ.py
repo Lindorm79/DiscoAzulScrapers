@@ -3,8 +3,10 @@ import json
 import time
 import os
 from deep_translator import GoogleTranslator
+from datetime import datetime
+import hashlib
 
-translator = GoogleTranslator(source='auto', target= 'es')
+translator = GoogleTranslator(source='auto', target='es')
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -13,8 +15,55 @@ HEADERS = {
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'output')
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, 'exercicios.json')
+LOG_FILE = os.path.join(OUTPUT_DIR, 'exercicios_log.json')
 
-# função para ir buscar os dados
+def calculate_hash(content):
+    return hashlib.sha256(json.dumps(content, sort_keys=True).encode('utf-8')).hexdigest()
+
+def log_change():
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = {
+        "timestamp": timestamp,
+        "file": OUTPUT_FILE,
+        "action": "modified"
+    }
+    
+    log_data = []
+    if os.path.exists(LOG_FILE):
+        try:
+            with open(LOG_FILE, 'r', encoding='utf-8') as f:
+                log_data = json.load(f)
+        except:
+            pass
+    
+    log_data.append(log_entry)
+    
+    with open(LOG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(log_data, f, ensure_ascii=False, indent=2)
+
+def save_if_changed(new_data):
+    current_hash = calculate_hash(new_data)
+    
+    # verificar se o arquivo já existe e comparar o hash
+    if os.path.exists(OUTPUT_FILE):
+        try:
+            with open(OUTPUT_FILE, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+            existing_hash = calculate_hash(existing_data)
+            
+            if current_hash == existing_hash:
+                print("ℹ️ Nenhuma alteração detectada no conteúdo.")
+                return False
+        except:
+            pass
+    
+    # salvar novo conteúdo e registrar a alteração
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+        json.dump(new_data, f, ensure_ascii=False, indent=2)
+    
+    log_change()
+    return True
+
 def get_exercicios(limit=5):  
     url = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json"
     try:
@@ -30,10 +79,9 @@ def get_exercicios(limit=5):
         print(f"Erro ao buscar dados do free-exercise-db: {e}")
         return []
 
-# função para processar cada exercício e formatar os dados
 def processar_exercicio(exercicio):
     try:
-        # Traduzir os detalhes (exceto o título)
+        # traduzir os detalhes (exceto o título)
         detalhes = {
             "Categoria": translator.translate(exercicio.get("category", "Não especificado")),
             "Força": translator.translate(exercicio.get("force", "Não especificado")),
@@ -43,10 +91,10 @@ def processar_exercicio(exercicio):
             "Músculos Secundários": translator.translate(", ".join(exercicio.get("secondaryMuscles", []))) if exercicio.get("secondaryMuscles") else "Nenhum"
         }
 
-        # Traduzir os passos
+        # traduzir os passos
         passos = [translator.translate(passo) for passo in exercicio.get("instructions", [])]
 
-        # Gerar URLs das imagens (sem tradução)
+        # gerar URLs das imagens (sem tradução)
         imagens = exercicio.get("images", [])
         imagens_urls = [
             f"https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/images/{exercicio['name'].replace(' ', '_')}/{img}"
@@ -54,7 +102,7 @@ def processar_exercicio(exercicio):
         ]
 
         return {
-            "titulo": exercicio.get("name", "Título não encontrado"),  # Mantém o título original
+            "titulo": exercicio.get("name", "Título não encontrado"),
             "detalhes": detalhes,
             "passos": passos,
             "imagens": imagens_urls if imagens_urls else None
@@ -63,9 +111,7 @@ def processar_exercicio(exercicio):
         print(f"Erro ao processar exercício {exercicio.get('name', 'desconhecido')}: {e}")
         return None
 
-
 def main():
-
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
     exercicios_raw = get_exercicios(limit=5) 
@@ -82,9 +128,10 @@ def main():
         time.sleep(0.5) 
 
     if todos_exercicios:
-        with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-            json.dump(todos_exercicios, f, ensure_ascii=False, indent=2)
-        print(f"✅ Dados dos exercícios salvos com sucesso em: {OUTPUT_FILE}")
+        if save_if_changed(todos_exercicios):
+            print(f"✅ Dados dos exercícios salvos com sucesso em: {OUTPUT_FILE}")
+        else:
+            print(f"ℹ️ Dados não salvos, pois não houve alterações.")
     else:
         print("❌ Nenhum dado de exercício processado.")
 
