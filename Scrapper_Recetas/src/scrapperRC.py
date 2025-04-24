@@ -10,9 +10,13 @@ HEADERS = {
     "Accept-Language": "es-ES,es;q=0.9"
 }
 
-OUTPUT_PATH = "/home/joaobahia/Projeto/DiscoAzulScrappers/Scrappers_Receitas/output"
-# Função para pegar os links das receitas na página principal
-def get_links_recetas(limit = 5): # Limite de links a serem coletados
+# caminho para a pasta output
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), 'output')
+os.makedirs(OUTPUT_DIR, exist_ok=True) # cria a pasta output, se esta ainda não existir
+
+
+# função para levantar os links da página principal
+def get_links_recetas(limit = 5): # limite de links a serem levantados
     url = "https://www.recetasgratis.net/"
     try:
         response = requests.get(url, headers=HEADERS)
@@ -36,21 +40,21 @@ def get_links_recetas(limit = 5): # Limite de links a serem coletados
         print(f"Erro ao buscar links em {url}: {e}")
         return []
 
-# Função para coletar os dados de cada receita
+# função para coletar os dados de cada receita
 def scrape_receta(url):
     try:
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Extrair título da receita
+        # extrair título da receita
         titulo = soup.find('h1', class_='titulo').text.strip()
 
-        # Extrair imagem da receita 
+        # extrair imagem da receita 
         imagem = soup.find('img', class_='imagen')
         imagem_url = imagem['src'] if imagem else None
 
-        # Extrair ingredientes
+        # extrair ingredientes
         ingredientes = []
         ingredientes_section = soup.find('div', class_='ingredientes')
         if ingredientes_section:
@@ -59,7 +63,7 @@ def scrape_receta(url):
                 if ingrediente:
                     ingredientes.append(ingrediente)
 
-        # Extrair passos
+        # extrair passos
         passos = []
         passos_section = soup.find_all('div', class_='apartado')
         for sec in passos_section:
@@ -68,8 +72,7 @@ def scrape_receta(url):
                 if p:
                     passos.append(p.get_text(strip=True))
 
-        # Extrair valores nutricionais
-          
+        # extrair valores nutricionais
         nutricion = {}
         nutricion_section = soup.find('div', id='nutritional-info')
         if nutricion_section:
@@ -90,7 +93,7 @@ def scrape_receta(url):
         print(f"Erro ao coletar dados de {url}: {e}")
         return None
 
-# Função principal para buscar as receitas
+# função principal para buscar as receitas
 def main():
    
     links = get_links_recetas(limit=5)
@@ -102,7 +105,7 @@ def main():
             if dados:
                 todas_receitas.append(dados)
 
-        output_file = os.path.join(OUTPUT_PATH, 'receitas.json')
+        output_file = os.path.join(OUTPUT_DIR, 'receitas.json')
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(todas_receitas, f, ensure_ascii=False, indent=2)
 
