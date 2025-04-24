@@ -137,7 +137,7 @@ def main():
     while True:
         try:
             limit = int(input("Digite o número de receitas a coletar (exemplo: 5): "))
-            print("\n\t==={ Scrapping in proccess, please be pacient. It may take some time, big numbers are equivalent to bigger delays. }===")
+            print("\n\t==={ Scrapping in proccess, please be pacient. It may take some time, big numbers are equivalent to bigger delays. }===\n")
             if limit > 0:
                 break
             print("Por favor, insira um número maior que 0.")
