@@ -89,7 +89,10 @@ def scrape_open_food_facts(limit):
         "json": 1,
         "page_size": limit,
         "page": 1,
-        "sort_by": "unique_scans_n"
+        "sort_by": "unique_scans_n",
+        "tagtype_0": "countries",
+        "tag_contains_0": "contains",
+        "tag_0": "es"
     }
     
     try:
